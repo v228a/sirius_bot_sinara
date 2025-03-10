@@ -16,9 +16,18 @@ const StartNodeCard = styled(NodeCard)(({ theme }) => ({
 const StyledTextField = styled(TextField)({
   '& .MuiInputBase-root': {
     padding: '8px',
+    '& fieldset': {
+      border: 'none',
+    },
+    '&:hover fieldset': {
+      border: 'none',
+    },
+    '&.Mui-focused fieldset': {
+      border: 'none',
+    },
   },
   '& .MuiInputBase-input': {
-    fontSize: '14px',
+    padding: '0',
   },
 });
 

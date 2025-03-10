@@ -1,17 +1,14 @@
-import { useState, useCallback, useRef, useEffect, DragEvent } from 'react';
+import { useState, useCallback, DragEvent, useEffect } from 'react';
 import ReactFlow, {
   Background,
-  Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   addEdge,
   Connection,
   Edge,
-  useReactFlow,
-  Panel,
   getIncomers,
   ReactFlowProvider,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Box, styled, ThemeProvider } from '@mui/material';
@@ -111,7 +108,6 @@ const Flow = () => {
   const [hasErrors, setHasErrors] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Сохраняем состояние при изменении nodes или edges
   useEffect(() => {
@@ -228,38 +224,33 @@ const Flow = () => {
     [setEdges, isValidConnection]
   );
 
-  const onDragOver = useCallback((event: DragEvent) => {
+  const onDragStart = (event: DragEvent, nodeType: 'question' | 'answer' | 'checklist') => {
+    event.dataTransfer.setData('application/reactflow', nodeType);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
+    event.dataTransfer.dropEffect = 'move';
   }, []);
 
   const onDrop = useCallback(
-    (event: DragEvent) => {
+    (event: React.DragEvent) => {
       event.preventDefault();
 
-      if (!event.dataTransfer) return;
-
-      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
       const type = event.dataTransfer.getData('application/reactflow') as 'question' | 'answer' | 'checklist';
+      if (!type) return;
 
-      if (typeof type === 'undefined' || !type) {
-        return;
-      }
-
-      if (!reactFlowBounds) return;
-
-      const position = reactFlowInstance.project({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
       });
 
       const newNode: ChatBotNode = {
-        id: `${type}_${nodes.length + 1}`,
+        id: `${type}_${Date.now()}`,
         type,
         position,
-        data: { 
+        data: {
           label: type === 'question' ? 'Новый вопрос' : 
                  type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
           type,
@@ -271,7 +262,7 @@ const Flow = () => {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, nodes]
+    [reactFlowInstance]
   );
 
   const buildHierarchy = (startNodeId: string): BotNode[] => {
@@ -392,14 +383,9 @@ const Flow = () => {
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           fitView
-          ref={reactFlowWrapper}
         >
           <Background />
-          <Controls />
-          <MiniMap />
-          <Panel position="top-right">
-            <GraphControls />
-          </Panel>
+          <GraphControls onDragStart={onDragStart} />
         </ReactFlow>
       </FlowContainer>
       <Toolbar onExport={handleExport} hasErrors={hasErrors} />

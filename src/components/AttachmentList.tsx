@@ -16,35 +16,61 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { Attachment } from '../types';
 import { useState } from 'react';
 
+const AttachmentContainer = styled(Box)({
+  display: 'flex',
+  gap: '8px',
+  padding: '8px',
+  borderTop: '1px solid #eee',
+});
+
 const StyledBadge = styled(Badge)({
   '& .MuiBadge-badge': {
     fontSize: '10px',
     height: '14px',
     minWidth: '14px',
-    padding: '0 2px',
+    padding: '0 4px',
   },
 });
 
-const AttachmentContainer = styled(Box)({
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  marginTop: 8,
-});
-
 const StyledIconButton = styled(IconButton)({
-  padding: 4,
+  padding: '4px',
   '& .MuiSvgIcon-root': {
-    fontSize: 16,
+    fontSize: '20px',
   },
 });
 
 const MenuIconButton = styled(IconButton)({
-  padding: 4,
+  padding: '4px',
   '& .MuiSvgIcon-root': {
-    fontSize: 16,
+    fontSize: '16px',
   },
 });
+
+// const AttachmentItem = styled(Box)({
+//   display: 'flex',
+//   alignItems: 'center',
+//   gap: '4px',
+//   padding: '8px',
+//   borderRadius: '4px',
+//   backgroundColor: 'rgba(0, 0, 0, 0.04)',
+//   '&:hover': {
+//     backgroundColor: 'rgba(0, 0, 0, 0.08)',
+//   },
+// });
+
+// const FileIcon = styled(Box)({
+//   display: 'flex',
+//   alignItems: 'center',
+//   color: 'rgba(0, 0, 0, 0.54)',
+// });
+
+// const FileName = styled(Typography)({
+//   flex: 1,
+//   fontSize: '12px',
+//   overflow: 'hidden',
+//   textOverflow: 'ellipsis',
+//   whiteSpace: 'nowrap',
+// });
 
 interface AttachmentListProps {
   attachments?: Attachment[];

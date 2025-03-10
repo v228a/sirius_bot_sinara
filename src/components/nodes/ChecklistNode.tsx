@@ -6,10 +6,13 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { NodeCard, StyledHandle, StyledCardContent } from './NodeStyles';
 import { NodeData, ChecklistItem } from '../../types';
 
-const ChecklistNodeCard = styled(NodeCard)({
-  backgroundColor: '#f5f5f5',
-  border: '1px solid #e0e0e0',
-});
+const ChecklistNodeCard = styled(NodeCard)(({  }) => ({
+  backgroundColor: '#e6d5fd',
+  borderColor: '#6002ee',
+  '& .MuiInputBase-root': {
+    backgroundColor: `#e6d5fd !important`,
+  },
+}));
 
 const ItemContainer = styled(Box)({
   display: 'flex',
@@ -32,9 +35,18 @@ const ItemControls = styled(Box)({
 const StyledTextField = styled(TextField)({
   '& .MuiInputBase-root': {
     padding: '8px',
+    '& fieldset': {
+      border: 'none',
+    },
+    '&:hover fieldset': {
+      border: 'none',
+    },
+    '&.Mui-focused fieldset': {
+      border: 'none',
+    },
   },
   '& .MuiInputBase-input': {
-    fontSize: '14px',
+    padding: '0',
   },
 });
 
