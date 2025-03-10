@@ -14,16 +14,14 @@ const AnswerNodeCard = styled(NodeCard)(({ theme }) => ({
   },
 }));
 
-const StyledTextField = styled(TextField)(({ theme }) => ({
+const StyledTextField = styled(TextField)({
   '& .MuiInputBase-root': {
-    fontSize: '13px',
-    padding: '4px 8px',
-    backgroundColor: 'transparent',
-    '& fieldset': {
-      border: 'none',
-    },
+    padding: '8px',
   },
-}));
+  '& .MuiInputBase-input': {
+    fontSize: '14px',
+  },
+});
 
 interface AnswerNodeProps {
   data: NodeData;
