@@ -124,12 +124,12 @@ const AnswerNode = ({ data, isConnectable, id }: AnswerNodeProps) => {
           onChange={handleLabelChange}
           placeholder="Введите ответ"
         />
-        <AttachmentList
+        {/* <AttachmentList
           attachments={data.attachments}
           onFileAttach={handleFileAttach}
           onImageAttach={handleImageAttach}
           onAttachmentDelete={handleAttachmentDelete}
-        />
+        /> */}
       </StyledCardContent>
       <StyledHandle
         type="target"

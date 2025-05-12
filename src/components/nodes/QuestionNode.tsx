@@ -138,12 +138,12 @@ const QuestionNode = ({ data, isConnectable, id }: QuestionNodeProps) => {
           onChange={handleLabelChange}
           placeholder="Введите вопрос"
         />
-        <AttachmentList
+        {/* <AttachmentList
           attachments={data.attachments}
           onFileAttach={handleFileAttach}
           onImageAttach={handleImageAttach}
           onAttachmentDelete={handleAttachmentDelete}
-        />
+        /> */}
       </StyledCardContent>
       <StyledHandle
         type="target"
