@@ -383,6 +383,7 @@ const Flow = () => {
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           fitView
+          style={{ backgroundColor: "#F7F9FB" }}
         >
           <Background />
           <GraphControls onDragStart={onDragStart} />
