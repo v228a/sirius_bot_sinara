@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Position } from 'reactflow';
 import { styled, TextField } from '@mui/material';
-import { NodeCard, StyledHandle, StyledCardContent } from './NodeStyles';
+import { NodeCard, StyledHandle, StyledCardContent } from '../NodeStyles';
 import { NodeData } from '../../types';
 
 const StartNodeCard = styled(NodeCard)(({ theme }) => ({

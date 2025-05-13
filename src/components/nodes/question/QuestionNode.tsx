@@ -1,10 +1,10 @@
 import { memo } from 'react';
 import { Position } from 'reactflow';
 import { styled, TextField } from '@mui/material';
-import { NodeCard, StyledHandle, StyledCardContent } from './NodeStyles';
-import { NodeData } from '../../types';
-import AttachmentList from '../AttachmentList';
-import { fileToBase64, generateFileHash, isFileSizeValid, formatFileSize, MAX_FILE_SIZE } from '../../utils/files';
+import { NodeCard, StyledHandle, StyledCardContent } from '../NodeStyles';
+import { NodeData } from '../../../types';
+import AttachmentList from '../../AttachmentList';
+import { fileToBase64, generateFileHash, isFileSizeValid, formatFileSize, MAX_FILE_SIZE } from '../../../utils/files';
 
 const QuestionNodeCard = styled(NodeCard)(({ theme }) => ({
   backgroundColor: theme.palette.primary.light,

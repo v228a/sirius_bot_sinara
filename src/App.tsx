@@ -17,7 +17,7 @@ import ValidationAlert from './components/ValidationAlert';
 import GraphControls from './components/GraphControls';
 import { ChatBotNode } from './types';
 import { theme } from './theme/theme';
-import { nodeTypes } from './components/nodes';
+import { nodeTypes } from './components/nodes/nodeTypes'
 import { getFileExtension, createZipFile } from './utils/files';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
