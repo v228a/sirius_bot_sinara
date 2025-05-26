@@ -9,10 +9,11 @@ import ReactFlow, {
   getIncomers,
   ReactFlowProvider,
   useReactFlow,
+  Controls,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Box, styled, ThemeProvider } from '@mui/material';
-import Toolbar from './components/Toolbar';
+
 import ValidationAlert from './components/ValidationAlert';
 import GraphControls from './components/GraphControls';
 import { ChatBotNode } from './types';
@@ -33,12 +34,11 @@ const AppContainer = styled(Box)({
 const MainContainer = styled(Box)({
   flex: 1,
   display: 'flex',
-  marginTop: '56px', // высота toolbar
 });
 
 const FlowContainer = styled(Box)({
   width: '100vw',
-  height: 'calc(100vh - 56px)',
+  height: '100vh',
 });
 
 const initialNodes: ChatBotNode[] = [
@@ -103,6 +103,7 @@ interface BotStructure {
 
 const Flow = () => {
   const reactFlowInstance = useReactFlow();
+  const [colorMode, setColorMode] = useState<ColorMode>('light');
   const [nodes, setNodes, onNodesChange] = useNodesState(loadState().nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(loadState().edges);
   const [hasErrors, setHasErrors] = useState(false);
@@ -384,11 +385,11 @@ const Flow = () => {
           nodeTypes={nodeTypes}
           fitView
         >
-          <Background />
+          <Background color='F6F6F6'/>
+          <Controls />
           <GraphControls onDragStart={onDragStart} />
         </ReactFlow>
       </FlowContainer>
-      <Toolbar onExport={handleExport} hasErrors={hasErrors} />
       <Snackbar 
         open={!!storageError || !!fileError} 
         autoHideDuration={6000} 

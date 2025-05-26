@@ -1,7 +1,12 @@
-import { Box, Card, CardContent, Typography, styled, useTheme } from '@mui/material';
+import { Box, Card, CardContent, Typography, styled, useTheme, Menu, MenuItem, ListItemIcon, ListItemText, Button } from '@mui/material';
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import ChatIcon from '@mui/icons-material/Chat';
 import ChecklistIcon from '@mui/icons-material/CheckBox';
+import SettingsIcon from '@mui/icons-material/Settings';
+import HandymanIcon from '@mui/icons-material/Handyman';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import { useState } from 'react';
 // import { useReactFlow } from 'reactflow';
 
 const ControlsContainer = styled(Box)({
@@ -24,6 +29,13 @@ const NodeCard = styled(Card)(({ theme }) => ({
     boxShadow: theme.shadows[4],
   },
 }));
+
+const ToolsCard = styled(NodeCard)({
+  '&:hover': {
+    transform: 'none',
+    boxShadow: 'none',
+  },
+});
 
 const CardInner = styled(CardContent)({
   display: 'flex',
@@ -71,6 +83,8 @@ interface GraphControlsProps {
 const GraphControls = ({ onDragStart }: GraphControlsProps) => {
   // const reactFlowInstance = useReactFlow();
   const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleDragStart = (event: React.DragEvent, nodeType: 'question' | 'answer' | 'checklist') => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -85,6 +99,15 @@ const GraphControls = ({ onDragStart }: GraphControlsProps) => {
     event.dataTransfer.setDragImage(preview, 0, 0);
 
     onDragStart(event, nodeType);
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+    setMenuOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    setMenuOpen(false);
   };
 
   return (
@@ -130,8 +153,64 @@ const GraphControls = ({ onDragStart }: GraphControlsProps) => {
           </StyledTypography>
         </CardInner>
       </NodeCard>
+
+      <NodeCard
+        draggable
+        aria-controls={menuOpen ? 'basic-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={menuOpen ? 'true' : undefined}
+        onMouseEnter={handleMenuOpen}
+        // onClick={}
+      >
+        <CardInner>
+          <IconWrapper color="#757575">
+            <HandymanIcon/>
+          </IconWrapper>
+          <StyledTypography variant="body2" color="text.secondary">
+            Инструменты
+          </StyledTypography>
+        </CardInner>
+      </NodeCard>
+      
+      
+
+      <Menu
+        anchorEl={anchorEl}
+        open={menuOpen}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        MenuListProps={{
+          onMouseLeave: handleMenuClose,
+        }}
+        sx={{
+          pointerEvents: 'none',
+          '& .MuiPaper-root': {
+            pointerEvents: 'auto',
+          },
+        }}
+      >
+        <MenuItem onClick={handleMenuClose}>
+          <ListItemIcon>
+            <SaveIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Эспортировать</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleMenuClose}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Сортировать</ListItemText>
+        </MenuItem>
+      </Menu>
     </ControlsContainer>
   );
 };
 
-export default GraphControls; 
+export default GraphControls;
