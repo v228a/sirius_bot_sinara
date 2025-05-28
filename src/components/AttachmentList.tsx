@@ -77,13 +77,15 @@ interface AttachmentListProps {
   onFileAttach: (file: File) => void;
   onImageAttach: (file: File) => void;
   onAttachmentDelete: (attachmentId: string) => void;
+  nodeId: string;
 }
 
 const AttachmentList = ({ 
   attachments = [], 
   onFileAttach, 
   onImageAttach,
-  onAttachmentDelete 
+  onAttachmentDelete,
+  nodeId 
 }: AttachmentListProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedType, setSelectedType] = useState<'file' | 'image' | null>(null);
@@ -132,7 +134,7 @@ const AttachmentList = ({
     <AttachmentContainer>
       <input
         type="file"
-        id="file-input"
+        id={`file-input-${nodeId}`}
         style={{ display: 'none' }}
         onChange={(e) => handleFileSelect(e, 'file')}
       />
@@ -154,7 +156,7 @@ const AttachmentList = ({
 
       <input
         type="file"
-        id="image-input"
+        id={`image-input-${nodeId}`}
         accept="image/*"
         style={{ display: 'none' }}
         onChange={(e) => handleFileSelect(e, 'image')}
@@ -180,7 +182,7 @@ const AttachmentList = ({
         open={open}
         onClose={handleClose}
       >
-        <MenuItem onClick={() => document.getElementById(selectedType === 'file' ? 'file-input' : 'image-input')?.click()}>
+        <MenuItem onClick={() => document.getElementById(selectedType === 'file' ? `file-input-${nodeId}` : `image-input-${nodeId}`)?.click()}>
           <ListItemIcon>
             {selectedType === 'file' ? 
               <AttachFileIcon sx={{ fontSize: 16 }} /> : 

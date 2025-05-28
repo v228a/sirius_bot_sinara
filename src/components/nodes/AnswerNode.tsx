@@ -129,6 +129,7 @@ const AnswerNode = ({ data, isConnectable, id }: AnswerNodeProps) => {
           onFileAttach={handleFileAttach}
           onImageAttach={handleImageAttach}
           onAttachmentDelete={handleAttachmentDelete}
+          nodeId={id}
         />
       </StyledCardContent>
       <StyledHandle
