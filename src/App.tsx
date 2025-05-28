@@ -103,7 +103,7 @@ interface BotStructure {
 
 const Flow = () => {
   const reactFlowInstance = useReactFlow();
-  const [colorMode, setColorMode] = useState<ColorMode>('light');
+
   const [nodes, setNodes, onNodesChange] = useNodesState(loadState().nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(loadState().edges);
   const [hasErrors, setHasErrors] = useState(false);
@@ -364,7 +364,7 @@ const Flow = () => {
 
   const handleValidationChange = useCallback((errors: { severity: 'error' | 'warning' }[]) => {
     setHasErrors(errors.some(error => error.severity === 'error'));
-  }, []);
+  }, []); 
 
   return (
     <>
@@ -387,7 +387,7 @@ const Flow = () => {
         >
           <Background color='F6F6F6'/>
           <Controls />
-          <GraphControls onDragStart={onDragStart} />
+          <GraphControls onDragStart={onDragStart} onExport={handleExport} hasErrors={hasErrors} />
         </ReactFlow>
       </FlowContainer>
       <Snackbar 

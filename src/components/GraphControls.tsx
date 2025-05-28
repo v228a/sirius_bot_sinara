@@ -1,10 +1,9 @@
-import { Box, Card, CardContent, Typography, styled, useTheme, Menu, MenuItem, ListItemIcon, ListItemText, Button } from '@mui/material';
+import { Box, Card, CardContent, Typography, styled, useTheme, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import ChatIcon from '@mui/icons-material/Chat';
 import ChecklistIcon from '@mui/icons-material/CheckBox';
-import SettingsIcon from '@mui/icons-material/Settings';
 import HandymanIcon from '@mui/icons-material/Handyman';
-import DeleteIcon from '@mui/icons-material/Delete';
+
 import SaveIcon from '@mui/icons-material/Save';
 import { useState } from 'react';
 // import { useReactFlow } from 'reactflow';
@@ -30,12 +29,7 @@ const NodeCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-const ToolsCard = styled(NodeCard)({
-  '&:hover': {
-    transform: 'none',
-    boxShadow: 'none',
-  },
-});
+
 
 const CardInner = styled(CardContent)({
   display: 'flex',
@@ -78,9 +72,11 @@ const StyledTypography = styled(Typography)({
 
 interface GraphControlsProps {
   onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer' | 'checklist') => void;
+  onExport: () => void;
+  hasErrors: boolean;
 }
 
-const GraphControls = ({ onDragStart }: GraphControlsProps) => {
+const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps) => {
   // const reactFlowInstance = useReactFlow();
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -196,18 +192,18 @@ const GraphControls = ({ onDragStart }: GraphControlsProps) => {
           },
         }}
       >
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={onExport} disabled={hasErrors}>
           <ListItemIcon>
             <SaveIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Эспортировать</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        {/* <MenuItem onClick={handleMenuClose}>
           <ListItemIcon>
-            <DeleteIcon fontSize="small" />
+            <SortIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Сортировать</ListItemText>
-        </MenuItem>
+        </MenuItem> */}
       </Menu>
     </ControlsContainer>
   );
