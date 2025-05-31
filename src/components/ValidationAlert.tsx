@@ -8,7 +8,7 @@ import { useReactFlow } from 'reactflow';
 
 const AlertContainer = styled(Box)({
   position: 'fixed',
-  top: 20,
+  top: 60,
   right: 20,
   zIndex: 1200,
   display: 'flex',
