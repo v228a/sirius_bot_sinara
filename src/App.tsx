@@ -1,4 +1,4 @@
-import { useState, useCallback, DragEvent, useEffect } from 'react';
+import { useState, useCallback, DragEvent, useEffect, useRef } from 'react';
 import ReactFlow, {
   Background,
   useNodesState,
@@ -10,18 +10,21 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
   Controls,
+  applyNodeChanges,
+  applyEdgeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, styled, ThemeProvider } from '@mui/material';
-
-import ValidationAlert from './components/ValidationAlert';
-import GraphControls from './components/GraphControls';
+import { Box, styled, AppBar, Toolbar } from '@mui/material';
+import { useTheme as useMuiTheme } from '@mui/material/styles';
+import { ThemeToggle } from './components/ThemeToggle';
 import { ChatBotNode } from './types';
-import { theme } from './theme/theme';
 import { nodeTypes } from './components/nodes';
 import { getFileExtension, createZipFile } from './utils/files';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import { ThemeProvider } from './theme/ThemeContext';
+import ValidationAlert from './components/ValidationAlert';
+import GraphControls from './components/GraphControls';
 
 const STORAGE_KEY = 'chatbot-flow-state';
 
@@ -31,17 +34,25 @@ const AppContainer = styled(Box)({
   flexDirection: 'column',
 });
 
-const MainContainer = styled(Box)({
+const MainContainer = styled(Box)(({ theme }) => ({
   flex: 1,
   display: 'flex',
-});
+  width: '100%',
+  height: '100%',
+  background: theme.palette.background.default,
+}));
 
 const FlowContainer = styled(Box)({
+  flex: 1,
+  position: 'relative',
+  display: 'flex',
   width: '100vw',
-  height: '100vh',
+  height: 'calc(100vh - 64px)',
+  minWidth: 0,
+  minHeight: 0,
 });
 
-const initialNodes: ChatBotNode[] = [
+const initialNodes = [
   {
     id: 'start',
     type: 'start',
@@ -55,7 +66,24 @@ const initialNodes: ChatBotNode[] = [
   },
 ];
 
-// Функция для загрузки состояния из localStorage
+function normalizeNode(node: any): any {
+  // Если уже правильный type и data — оставляем
+  if (
+    ['question', 'answer', 'start', 'checklist'].includes(node.type) &&
+    node.data && node.data.type && node.data.label
+  ) return node;
+  // Если старый формат — переносим в data
+  return {
+    ...node,
+    type: node.data?.type || node.type || 'question',
+    data: {
+      type: node.data?.type || node.type || 'question',
+      label: node.data?.label || node.label || '',
+      ...node.data,
+    },
+  };
+}
+
 const loadState = (): { nodes: ChatBotNode[]; edges: Edge[] } => {
   const savedState = localStorage.getItem(STORAGE_KEY);
   if (savedState) {
@@ -63,17 +91,13 @@ const loadState = (): { nodes: ChatBotNode[]; edges: Edge[] } => {
       const parsedState = JSON.parse(savedState);
       let savedNodes = parsedState.nodes as ChatBotNode[];
       const savedEdges = parsedState.edges as Edge[];
-      
-      // Убедимся, что стартовый узел всегда присутствует и не перемещаем
       const hasStartNode = savedNodes.some((node: ChatBotNode) => node.id === 'start');
       if (!hasStartNode) {
         savedNodes.push(initialNodes[0]);
       } else {
-        savedNodes = savedNodes.map((node: ChatBotNode) => 
-          node.id === 'start' ? { ...node, draggable: false } : node
-        );
+        savedNodes = savedNodes.map((node: ChatBotNode) => node.id === 'start' ? { ...node, draggable: false } : node);
       }
-
+      savedNodes = savedNodes.map(normalizeNode);
       return { nodes: savedNodes, edges: savedEdges };
     } catch (e) {
       console.error('Failed to parse saved state:', e);
@@ -103,12 +127,26 @@ interface BotStructure {
 
 const Flow = () => {
   const reactFlowInstance = useReactFlow();
-
+  const muiTheme = useMuiTheme();
   const [nodes, setNodes, onNodesChange] = useNodesState(loadState().nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(loadState().edges);
   const [hasErrors, setHasErrors] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const didFitView = useRef(false);
+
+  // fitView при первой загрузке
+  useEffect(() => {
+    if (!didFitView.current && nodes.length > 0) {
+      if (nodes.length === 1) {
+        // Если только один узел — центрируем вручную
+        reactFlowInstance.setViewport({ x: window.innerWidth / 2 - nodes[0].position.x, y: window.innerHeight / 2 - nodes[0].position.y, zoom: 1 });
+      } else {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
+      }
+      didFitView.current = true;
+    }
+  }, [nodes, reactFlowInstance]);
 
   // Сохраняем состояние при изменении nodes или edges
   useEffect(() => {
@@ -216,14 +254,9 @@ const Flow = () => {
     [nodes, edges]
   );
 
-  const onConnect = useCallback(
-    (params: Connection | Edge) => {
-      if (isValidConnection(params as Connection)) {
-        setEdges((eds) => addEdge(params, eds));
-      }
-    },
-    [setEdges, isValidConnection]
-  );
+  const onConnect = useCallback((params: any) => {
+    setEdges((eds) => addEdge(params, eds));
+  }, []);
 
   const onDragStart = (event: DragEvent, nodeType: 'question' | 'answer' | 'checklist') => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -238,29 +271,23 @@ const Flow = () => {
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-
       const type = event.dataTransfer.getData('application/reactflow') as 'question' | 'answer' | 'checklist';
       if (!type) return;
-
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
-
       const newNode: ChatBotNode = {
         id: `${type}_${Date.now()}`,
         type,
         position,
         data: {
-          label: type === 'question' ? 'Новый вопрос' : 
-                 type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
+          label: type === 'question' ? 'Новый вопрос' : type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
           type,
-          content: type === 'question' ? 'Новый вопрос' : 
-                   type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
+          content: type === 'question' ? 'Новый вопрос' : type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
           checklistItems: type === 'checklist' ? [] : undefined,
         },
       };
-
       setNodes((nds) => nds.concat(newNode));
     },
     [reactFlowInstance]
@@ -366,6 +393,11 @@ const Flow = () => {
     setHasErrors(errors.some(error => error.severity === 'error'));
   }, []); 
 
+  const onNodeDelete = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+  }, []);
+
   return (
     <>
       <ValidationAlert 
@@ -375,6 +407,7 @@ const Flow = () => {
       />
       <FlowContainer>
         <ReactFlow
+          style={{ width: '100vw', height: 'calc(100vh - 64px)' }}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -385,9 +418,15 @@ const Flow = () => {
           nodeTypes={nodeTypes}
           fitView
         >
-          <Background color='F6F6F6'/>
+          <Background color={muiTheme.palette.background.default} />
           <Controls />
-          <GraphControls onDragStart={onDragStart} onExport={handleExport} hasErrors={hasErrors} />
+          <GraphControls 
+            onDragStart={onDragStart} 
+            onExport={handleExport} 
+            hasErrors={hasErrors}
+            nodes={nodes}
+            edges={edges}
+          />
         </ReactFlow>
       </FlowContainer>
       <Snackbar 
@@ -417,8 +456,14 @@ const Flow = () => {
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <AppContainer>
+        <AppBar position="static" color="default" elevation={1}>
+          <Toolbar>
+            <Box sx={{ flexGrow: 1 }} />
+            <ThemeToggle />
+          </Toolbar>
+        </AppBar>
         <MainContainer>
           <ReactFlowProvider>
             <Flow />

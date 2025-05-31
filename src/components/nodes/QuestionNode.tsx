@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Position } from 'reactflow';
-import { styled, TextField } from '@mui/material';
+import { styled, TextField, IconButton, useTheme } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { NodeCard, StyledHandle, StyledCardContent } from './NodeStyles';
 import { NodeData } from '../../types';
 import AttachmentList from '../AttachmentList';
@@ -39,6 +40,7 @@ interface QuestionNodeProps {
 }
 
 const QuestionNode = ({ data, isConnectable, id }: QuestionNodeProps) => {
+  const theme = useTheme();
   const handleLabelChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     const evt = {
@@ -52,6 +54,11 @@ const QuestionNode = ({ data, isConnectable, id }: QuestionNodeProps) => {
       },
     };
     window.dispatchEvent(new CustomEvent('node-label-change', { detail: evt }));
+  };
+
+  const handleDelete = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    window.dispatchEvent(new CustomEvent('delete-node', { detail: { id } }));
   };
 
   const handleFileAttach = async (file: File) => {
@@ -128,7 +135,28 @@ const QuestionNode = ({ data, isConnectable, id }: QuestionNodeProps) => {
   };
 
   return (
-    <QuestionNodeCard>
+    <QuestionNodeCard sx={{ position: 'relative' }}>
+      <IconButton
+        size="small"
+        onClick={handleDelete}
+        sx={{
+          position: 'absolute',
+          top: 2,
+          right: 2,
+          backgroundColor: 'transparent',
+          color: theme.palette.primary.dark,
+          opacity: 1,
+          zIndex: 2,
+          padding: '2px',
+          '&:hover': {
+            backgroundColor: 'transparent',
+            color: theme.palette.primary.dark,
+            opacity: 1,
+          },
+        }}
+      >
+        <DeleteIcon fontSize="small" sx={{ fontSize: 16 }} />
+      </IconButton>
       <StyledCardContent>
         <StyledTextField
           fullWidth

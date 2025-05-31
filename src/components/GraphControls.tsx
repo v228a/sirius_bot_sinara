@@ -3,12 +3,14 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import ChatIcon from '@mui/icons-material/Chat';
 import ChecklistIcon from '@mui/icons-material/CheckBox';
 import HandymanIcon from '@mui/icons-material/Handyman';
-
 import SaveIcon from '@mui/icons-material/Save';
+import CodeIcon from '@mui/icons-material/Code';
 import { useState } from 'react';
+import { ModalTelegramExport } from './ModalTelegramExport';
+import { ChatBotNode, Edge } from '../types';
 // import { useReactFlow } from 'reactflow';
 
-const ControlsContainer = styled(Box)({
+const ControlsContainer = styled(Box)(({ theme }) => ({
   position: 'absolute',
   bottom: 20,
   left: '50%',
@@ -16,7 +18,8 @@ const ControlsContainer = styled(Box)({
   display: 'flex',
   gap: '12px',
   zIndex: 1000,
-});
+  background: 'transparent',
+}));
 
 const NodeCard = styled(Card)(({ theme }) => ({
   minWidth: 80,
@@ -28,8 +31,6 @@ const NodeCard = styled(Card)(({ theme }) => ({
     boxShadow: theme.shadows[4],
   },
 }));
-
-
 
 const CardInner = styled(CardContent)({
   display: 'flex',
@@ -71,18 +72,115 @@ const StyledTypography = styled(Typography)({
 });
 
 interface GraphControlsProps {
-  onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer' | 'checklist') => void;
+  onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer') => void;
   onExport: () => void;
   hasErrors: boolean;
+  nodes: ChatBotNode[];
+  edges: Edge[];
 }
 
-const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps) => {
+function generateTelegramBotCode(nodes: ChatBotNode[], edges: Edge[]): string {
+  // Находим стартовый узел
+  const startNode = nodes.find(n => n.data.type === 'start');
+  if (!startNode) return '# Ошибка: нет стартового узла';
+
+  // Собираем все вопросы и ответы
+  const questions = nodes.filter(n => n.data.type === 'question');
+  const answers = nodes.filter(n => n.data.type === 'answer');
+
+  // Строим карту переходов: sourceId -> targetId[]
+  const edgeMap: Record<string, string[]> = {};
+  edges.forEach(e => {
+    if (!edgeMap[e.source]) edgeMap[e.source] = [];
+    edgeMap[e.source].push(e.target);
+  });
+
+  // Для быстрого поиска ноды по id
+  const nodeById: Record<string, ChatBotNode> = {};
+  nodes.forEach(n => { nodeById[n.id] = n; });
+
+  // Генерируем хендлеры для вопросов
+  let handlers = '';
+  
+  // Создаем клавиатуру со всеми вопросами
+  const questionButtons = questions.map(q => `[KeyboardButton(text='${q.data.label.replace(/'/g, "\'")}')]`).join(',\n        ');
+  
+  // Handler для старта и возврата к списку вопросов
+  handlers += `\n@router.message(Command("start"))\n`;
+  handlers += `async def show_questions(message: Message):\n`;
+  handlers += `    keyboard = [\n        ${questionButtons}\n    ]\n`;
+  handlers += `    markup = ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)\n`;
+  handlers += `    await message.answer('Выберите интересующий вас вопрос:', reply_markup=markup)\n\n`;
+
+  // Для каждого вопроса создаем handler
+  for (const q of questions) {
+    const nextIds = edgeMap[q.id] || [];
+    // Ответы для этого вопроса
+    const answerNodes = nextIds.map(id => nodeById[id]).filter(n => n && n.data.type === 'answer');
+    
+    handlers += `@router.message(lambda message: message.text == '${q.data.label.replace(/'/g, "\'")}')\n`;
+    handlers += `async def answer_${q.id}(message: Message):\n`;
+    
+    if (answerNodes.length > 0) {
+      // Если есть ответы, показываем их
+      const answerText = answerNodes.map(a => a.data.label).join('\n');
+      handlers += `    await message.answer('${answerText.replace(/'/g, "\'")}')\n`;
+    } else {
+      handlers += `    await message.answer('К сожалению, ответ на этот вопрос пока не готов.')\n`;
+    }
+    
+    // Добавляем кнопку возврата к списку вопросов
+    handlers += `    keyboard = [\n        ${questionButtons}\n    ]\n`;
+    handlers += `    markup = ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)\n`;
+    handlers += `    await message.answer('Выберите другой вопрос:', reply_markup=markup)\n\n`;
+  }
+
+  // Генерируем основной код
+  return `import asyncio
+import logging
+from aiogram import Bot, Dispatcher, Router
+from aiogram.filters import Command
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.exceptions import TelegramBadRequest
+
+# Включаем логирование
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Замените на свой токен
+API_TOKEN = 'YOUR_TOKEN_HERE'
+
+# Инициализируем бота и диспетчер
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher()
+router = Router()
+dp.include_router(router)
+
+${handlers}
+
+async def main():
+    try:
+        # Запускаем бота
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")
+    finally:
+        await bot.session.close()
+
+if __name__ == '__main__':
+    asyncio.run(main())
+`;
+}
+
+const GraphControls = ({ onDragStart, onExport, hasErrors, nodes, edges }: GraphControlsProps) => {
   // const reactFlowInstance = useReactFlow();
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [tgCode, setTgCode] = useState('');
 
-  const handleDragStart = (event: React.DragEvent, nodeType: 'question' | 'answer' | 'checklist') => {
+  const handleDragStart = (event: React.DragEvent, nodeType: 'question' | 'answer') => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
 
@@ -106,106 +204,86 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
     setMenuOpen(false);
   };
 
+  const handleExportTelegram = () => {
+    const code = generateTelegramBotCode(nodes, edges);
+    setTgCode(code);
+    setModalOpen(true);
+    handleMenuClose();
+  };
+
   return (
-    <ControlsContainer>
-      <NodeCard
-        draggable
-        onDragStart={(event) => handleDragStart(event, 'question')}
-      >
-        <CardInner>
-          <IconWrapper color={theme.palette.primary.main}>
-            <QuestionMarkIcon />
-          </IconWrapper>
-          <StyledTypography variant="body2" color="text.secondary">
-            Добавить вопрос
-          </StyledTypography>
-        </CardInner>
-      </NodeCard>
+    <>
+      <ControlsContainer>
+        <NodeCard
+          draggable
+          onDragStart={(event) => handleDragStart(event, 'question')}
+        >
+          <CardInner>
+            <IconWrapper color={theme.palette.primary.main}>
+              <QuestionMarkIcon />
+            </IconWrapper>
+            <StyledTypography variant="body2" color="text.secondary">
+              Добавить вопрос
+            </StyledTypography>
+          </CardInner>
+        </NodeCard>
 
-      <NodeCard
-        draggable
-        onDragStart={(event) => handleDragStart(event, 'answer')}
-      >
-        <CardInner>
-          <IconWrapper color={theme.palette.secondary.main}>
-            <ChatIcon />
-          </IconWrapper>
-          <StyledTypography variant="body2" color="text.secondary">
-            Добавить ответ
-          </StyledTypography>
-        </CardInner>
-      </NodeCard>
+        <NodeCard
+          draggable
+          onDragStart={(event) => handleDragStart(event, 'answer')}
+        >
+          <CardInner>
+            <IconWrapper color={theme.palette.secondary.main}>
+              <ChatIcon />
+            </IconWrapper>
+            <StyledTypography variant="body2" color="text.secondary">
+              Добавить ответ
+            </StyledTypography>
+          </CardInner>
+        </NodeCard>
 
-      <NodeCard
-        draggable
-        onDragStart={(event) => handleDragStart(event, 'checklist')}
-      >
-        <CardInner>
-          <IconWrapper color="#6002ee">
-            <ChecklistIcon />
-          </IconWrapper>
-          <StyledTypography variant="body2" color="text.secondary">
-            Добавить чек-лист
-          </StyledTypography>
-        </CardInner>
-      </NodeCard>
-
-      <NodeCard
-        draggable
-        aria-controls={menuOpen ? 'basic-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={menuOpen ? 'true' : undefined}
-        onMouseEnter={handleMenuOpen}
-        // onClick={}
-      >
-        <CardInner>
-          <IconWrapper color="#757575">
-            <HandymanIcon/>
-          </IconWrapper>
-          <StyledTypography variant="body2" color="text.secondary">
-            Инструменты
-          </StyledTypography>
-        </CardInner>
-      </NodeCard>
-      
-      
-
-      <Menu
-        anchorEl={anchorEl}
-        open={menuOpen}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'center',
-        }}
-        transformOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-        MenuListProps={{
-          onMouseLeave: handleMenuClose,
-        }}
-        sx={{
-          pointerEvents: 'none',
-          '& .MuiPaper-root': {
-            pointerEvents: 'auto',
-          },
-        }}
-      >
-        <MenuItem onClick={onExport} disabled={hasErrors}>
-          <ListItemIcon>
-            <SaveIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Эспортировать</ListItemText>
-        </MenuItem>
-        {/* <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <SortIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Сортировать</ListItemText>
-        </MenuItem> */}
-      </Menu>
-    </ControlsContainer>
+        <NodeCard
+          draggable
+          aria-controls={menuOpen ? 'basic-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={menuOpen ? 'true' : undefined}
+          onMouseEnter={handleMenuOpen}
+        >
+          <CardInner>
+            <IconWrapper color="#757575">
+              <SaveIcon />
+            </IconWrapper>
+            <StyledTypography variant="body2" color="text.secondary">
+              Экспортировать
+            </StyledTypography>
+          </CardInner>
+        </NodeCard>
+        
+        <Menu
+          anchorEl={anchorEl}
+          open={menuOpen}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          MenuListProps={{ onMouseLeave: handleMenuClose }}
+          sx={{ pointerEvents: 'none', '& .MuiPaper-root': { pointerEvents: 'auto' } }}
+        >
+          <MenuItem onClick={() => { onExport(); handleMenuClose(); }} disabled={hasErrors}>
+            <ListItemIcon>
+              <SaveIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Экспортировать как JSON</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleExportTelegram} disabled={hasErrors}>
+            <ListItemIcon>
+              <CodeIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Экспортировать как Telegram-бот (Python, aiogram)</ListItemText>
+          </MenuItem>
+        </Menu>
+      </ControlsContainer>
+      <ModalTelegramExport open={modalOpen} onClose={() => setModalOpen(false)} code={tgCode} />
+    </>
   );
 };
 

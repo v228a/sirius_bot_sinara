@@ -7,9 +7,10 @@ import { NodeData } from '../../types';
 const StartNodeCard = styled(NodeCard)(({ theme }) => ({
   backgroundColor: theme.palette.warning.light,
   borderColor: theme.palette.warning.main,
+  color: theme.palette.getContrastText(theme.palette.warning.light),
   '& .MuiInputBase-root': {
     backgroundColor: `${theme.palette.warning.light} !important`,
-    color: 'rgba(0, 0, 0, 0.87) !important',
+    color: `${theme.palette.getContrastText(theme.palette.warning.light)} !important`,
   },
 }));
 

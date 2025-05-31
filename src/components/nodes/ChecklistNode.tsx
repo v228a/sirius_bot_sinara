@@ -6,11 +6,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { NodeCard, StyledHandle, StyledCardContent } from './NodeStyles';
 import { NodeData, ChecklistItem } from '../../types';
 
-const ChecklistNodeCard = styled(NodeCard)(({  }) => ({
-  backgroundColor: '#e6d5fd',
-  borderColor: '#6002ee',
+const ChecklistNodeCard = styled(NodeCard)(({ theme }) => ({
+  backgroundColor: theme.palette.secondary.light,
+  borderColor: theme.palette.secondary.main,
   '& .MuiInputBase-root': {
-    backgroundColor: `#e6d5fd !important`,
+    backgroundColor: `${theme.palette.secondary.light} !important`,
   },
 }));
 
