@@ -8,6 +8,8 @@ import CodeIcon from '@mui/icons-material/Code';
 import { useState } from 'react';
 import { ModalTelegramExport } from './ModalTelegramExport';
 import { ChatBotNode, Edge } from '../types';
+import { createZipFile } from '../utils/files';
+import { buildHierarchy } from '../utils/buildHierarchy';
 // import { useReactFlow } from 'reactflow';
 
 const ControlsContainer = styled(Box)(({ theme }) => ({
@@ -204,9 +206,8 @@ const GraphControls = ({ onDragStart, onExport, hasErrors, nodes, edges }: Graph
     setMenuOpen(false);
   };
 
-  const handleExportTelegram = () => {
-    const code = generateTelegramBotCode(nodes, edges);
-    setTgCode(code);
+  const handleExportAiogram = () => {
+    setTgCode(generateTelegramBotCode(nodes, edges));
     setModalOpen(true);
     handleMenuClose();
   };
@@ -219,7 +220,7 @@ const GraphControls = ({ onDragStart, onExport, hasErrors, nodes, edges }: Graph
           onDragStart={(event) => handleDragStart(event, 'question')}
         >
           <CardInner>
-            <IconWrapper color={theme.palette.primary.main}>
+            <IconWrapper color="#EBA577">
               <QuestionMarkIcon />
             </IconWrapper>
             <StyledTypography variant="body2" color="text.secondary">
@@ -233,7 +234,7 @@ const GraphControls = ({ onDragStart, onExport, hasErrors, nodes, edges }: Graph
           onDragStart={(event) => handleDragStart(event, 'answer')}
         >
           <CardInner>
-            <IconWrapper color={theme.palette.secondary.main}>
+            <IconWrapper color="#DE6516">
               <ChatIcon />
             </IconWrapper>
             <StyledTypography variant="body2" color="text.secondary">
@@ -268,17 +269,17 @@ const GraphControls = ({ onDragStart, onExport, hasErrors, nodes, edges }: Graph
           MenuListProps={{ onMouseLeave: handleMenuClose }}
           sx={{ pointerEvents: 'none', '& .MuiPaper-root': { pointerEvents: 'auto' } }}
         >
-          <MenuItem onClick={() => { onExport(); handleMenuClose(); }} disabled={hasErrors}>
+          <MenuItem onClick={handleExportAiogram} disabled={hasErrors}>
             <ListItemIcon>
               <SaveIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Экспортировать как JSON</ListItemText>
+            <ListItemText>Код на aiogram</ListItemText>
           </MenuItem>
-          <MenuItem onClick={handleExportTelegram} disabled={hasErrors}>
+          <MenuItem onClick={() => { onExport(); handleMenuClose(); }} disabled={hasErrors}>
             <ListItemIcon>
               <CodeIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Экспортировать как Telegram-бот (Python, aiogram)</ListItemText>
+            <ListItemText>ZIP файл для простого хостинга бота</ListItemText>
           </MenuItem>
         </Menu>
       </ControlsContainer>

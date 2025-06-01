@@ -39,18 +39,15 @@ export const createZipFile = async (
 ): Promise<Blob> => {
   const zip = new JSZip();
 
-  // Добавляем основной JSON файл
-  zip.file('main.json', mainJson);
-
-  // Создаем папки для файлов и изображений
-  const filesFolder = zip.folder('files');
-  const imagesFolder = zip.folder('images');
-
-  // Добавляем файлы в соответствующие папки
+  // Добавляем все файлы в корень архива
   Object.entries(files).forEach(([filename, content]) => {
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
-    const folder = isImage ? imagesFolder : filesFolder;
-    folder?.file(filename, content.split(',')[1], { base64: true });
+    // Если контент начинается с data: (base64), то это файл или изображение
+    if (content.startsWith('data:')) {
+      zip.file(filename, content.split(',')[1], { base64: true });
+    } else {
+      // Иначе это текстовый файл
+      zip.file(filename, content);
+    }
   });
 
   return zip.generateAsync({ type: 'blob' });

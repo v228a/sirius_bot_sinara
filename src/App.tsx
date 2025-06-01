@@ -15,6 +15,8 @@ import ReactFlow, {
   Node,
   NodeChange,
   EdgeChange,
+  SelectionMode,
+  BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Box, styled, AppBar, Toolbar, IconButton } from '@mui/material';
@@ -30,6 +32,8 @@ import ValidationAlert from './components/ValidationAlert';
 import GraphControls from './components/GraphControls';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
+import { buildHierarchy } from './utils/buildHierarchy';
+import Logo from './components/Logo';
 
 const STORAGE_KEY = 'chatbot-flow-state';
 
@@ -135,6 +139,7 @@ interface BotNode {
 
 interface BotStructure {
   questions: BotNode[];
+  token: string;
 }
 
 const Flow = ({ handleUndo, handleRedo, undoStack, redoStack, setUndoStack, setRedoStack, nodes, edges, setNodes, setEdges }: { handleUndo: () => void; handleRedo: () => void; undoStack: { nodes: ChatBotNode[]; edges: Edge[] }[]; redoStack: { nodes: ChatBotNode[]; edges: Edge[] }[]; setUndoStack: React.Dispatch<React.SetStateAction<{ nodes: ChatBotNode[]; edges: Edge[] }[]>>; setRedoStack: React.Dispatch<React.SetStateAction<{ nodes: ChatBotNode[]; edges: Edge[] }[]>>; nodes: ChatBotNode[]; edges: Edge[]; setNodes: React.Dispatch<React.SetStateAction<ChatBotNode[]>>; setEdges: React.Dispatch<React.SetStateAction<Edge[]>> }) => {
@@ -144,6 +149,8 @@ const Flow = ({ handleUndo, handleRedo, undoStack, redoStack, setUndoStack, setR
   const [storageError, setStorageError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const didFitView = useRef(false);
+  const [copiedNodes, setCopiedNodes] = useState<ChatBotNode[]>([]);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   const onNodeDelete = useCallback((nodeId: string) => {
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
@@ -348,101 +355,64 @@ const Flow = ({ handleUndo, handleRedo, undoStack, redoStack, setUndoStack, setR
     setEdges((eds) => applyEdgeChanges(changes, eds));
   }, [setEdges]);
 
-  const handleExport = async () => {
+  const exportZip = async (nodes: ChatBotNode[], edges: Edge[]) => {
     const startNode = nodes.find(node => node.data.type === 'start');
     if (!startNode) return;
-
-    const files: { [key: string]: string } = {};
-    
-    // Собираем все файлы из нод
-    nodes.forEach(node => {
-      node.data.attachments?.forEach(attachment => {
-        const extension = getFileExtension(attachment.name);
-        const filename = `${attachment.id}.${extension}`;
-        files[filename] = attachment.data;
-      });
-    });
-
-    const botStructure: BotStructure = {
-      questions: buildHierarchy(startNode.id)
+    const botStructure = {
+      questions: buildHierarchy(startNode.id, nodes, edges)
     };
-
-    const jsonString = JSON.stringify(botStructure, null, 2);
-    const zipBlob = await createZipFile(jsonString, files);
-
+    // Файлы для архива
+    const installScript = `#!/bin/bash\n\n# Установка зависимостей\napt-get update\napt-get install -y docker.io\n\n# Сборка и запуск контейнера\ndocker build -t chatbot .\ndocker run -d --name chatbot chatbot\n\necho \"Бот успешно установлен и запущен!\"\n`;
+    const dockerfile = `FROM python:3.9-slim\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\nCOPY . .\n\nCMD [\"python\", \"bot.py\"]\n`;
+    const requirements = `python-telegram-bot==13.7\npython-dotenv==0.19.0\n`;
+    const botPy = `import os\nimport json\nfrom telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup\nfrom telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext\n\nwith open('bot_structure.json', 'r', encoding='utf-8') as f:\n    bot_structure = json.load(f)\n\ndef start(update: Update, context: CallbackContext) -> None:\n    user_id = update.effective_user.id\n    context.user_data['current_question'] = 0\n    show_question(update, context)\n\ndef show_question(update: Update, context: CallbackContext) -> None:\n    user_id = update.effective_user.id\n    current_question = context.user_data.get('current_question', 0)\n    if current_question >= len(bot_structure['questions']):\n        update.message.reply_text(\"Спасибо за прохождение опроса!\")\n        return\n    question = bot_structure['questions'][current_question]\n    keyboard = []\n    for i, child in enumerate(question['children']):\n        keyboard.append([InlineKeyboardButton(child['text'], callback_data=str(i))])\n    reply_markup = InlineKeyboardMarkup(keyboard)\n    message = question['text']\n    if question.get('answer'):\n        message += f"\\n\\n{question['answer']}"\n    if question.get('checklist'):\n        message += f"\\n\\n{question['checklist']['title']}:"\n        for item in question['checklist']['items']:\n            message += f"\\n- {item}"\n    update.message.reply_text(message, reply_markup=reply_markup)\n\ndef button_callback(update: Update, context: CallbackContext) -> None:\n    query = update.callback_query\n    query.answer()\n    user_id = update.effective_user.id\n    current_question = context.user_data.get('current_question', 0)\n    selected_option = int(query.data)\n    context.user_data['current_question'] = current_question + 1\n    show_question(update, context)\n\ndef main() -> None:\n    updater = Updater(os.getenv('BOT_TOKEN'))\n    dispatcher = updater.dispatcher\n    dispatcher.add_handler(CommandHandler(\"start\", start))\n    dispatcher.add_handler(CallbackQueryHandler(button_callback))\n    updater.start_polling()\n    updater.idle()\n\nif __name__ == '__main__':\n    main()\n`;
+    const files = {
+      'install.sh': installScript,
+      'Dockerfile': dockerfile,
+      'requirements.txt': requirements,
+      'bot.py': botPy,
+      'bot_structure.json': JSON.stringify(botStructure, null, 2),
+    };
+    const zipBlob = await createZipFile(JSON.stringify(botStructure, null, 2), files);
     const url = URL.createObjectURL(zipBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'chatbot-flow.zip';
+    link.download = 'chatbot-bot.zip';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const buildHierarchy = (startNodeId: string): BotNode[] => {
-    const result: BotNode[] = [];
-    
-    // Находим все исходящие связи из текущего узла
-    const outgoingEdges = edges.filter(edge => edge.source === startNodeId);
-    
-    // Сначала собираем все вопросы
-    const questionEdges = outgoingEdges.filter(edge => {
-      const targetNode = nodes.find(node => node.id === edge.target);
-      return targetNode?.data.type === 'question';
-    });
-
-    // Затем для каждого вопроса собираем его ответ, чеклист и дочерние вопросы
-    for (const edge of questionEdges) {
-      const questionNode = nodes.find(node => node.id === edge.target);
-      if (questionNode) {
-        // Находим ответ для текущего вопроса
-        const answerNode = edges
-          .filter(e => e.source === questionNode.id)
-          .map(e => nodes.find(n => n.id === e.target))
-          .find(n => n?.data.type === 'answer');
-
-        // Находим чеклист для текущего вопроса (если есть)
-        const checklistNode = edges
-          .filter(e => e.source === questionNode.id)
-          .map(e => nodes.find(n => n.id === e.target))
-          .find(n => n?.data.type === 'checklist');
-
-        const checklist = checklistNode ? {
-          title: checklistNode.data.label,
-          items: checklistNode.data.checklistItems?.map(item => item.text) || []
-        } : undefined;
-
-        const node: BotNode = {
-          id: questionNode.id,
-          text: questionNode.data.label,
-          children: buildHierarchy(questionNode.id)
-        };
-
-        // Добавляем ответ только если он есть
-        if (answerNode) {
-          node.answer = answerNode.data.label;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.code === 'KeyC') {
+        // Копировать все выделенные ноды
+        const selectedNodes = nodes.filter((n: any) => n.selected);
+        if (selectedNodes.length > 0) {
+          setCopiedNodes(selectedNodes);
         }
-
-        // Добавляем чеклист только если он есть
-        if (checklist && checklist.items.length > 0) {
-          node.checklist = checklist;
-        }
-
-        // Добавляем вложения только если они есть
-        if (questionNode.data.attachments && questionNode.data.attachments.length > 0) {
-          node.attachments = questionNode.data.attachments.map(attachment => ({
-            id: attachment.id,
-            name: attachment.name
-          }));
-        }
-
-        result.push(node);
       }
-    }
-    
-    return result;
-  };
+      if (e.ctrlKey && e.code === 'KeyV') {
+        // Вставить все скопированные ноды
+        if (copiedNodes.length > 0) {
+          const now = Date.now();
+          const newNodes = copiedNodes.map((node, idx) => ({
+            ...node,
+            id: `${node.type}_${now}_${idx}`,
+            position: {
+              x: node.position.x + 40,
+              y: node.position.y + 40,
+            },
+            selected: true,
+          }));
+          setNodes(nds => nds.map(n => ({ ...n, selected: false })).concat(newNodes));
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nodes, copiedNodes, setNodes]);
 
   return (
     <>
@@ -464,12 +434,15 @@ const Flow = ({ handleUndo, handleRedo, undoStack, redoStack, setUndoStack, setR
           nodeTypes={nodeTypes}
           fitView
           isValidConnection={isValidConnection}
+          selectionMode={SelectionMode.Partial}
+          selectNodesOnDrag={true}
+          panOnDrag={true}
         >
-          <Background color={muiTheme.palette.background.default} />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="#999" />
           <Controls />
           <GraphControls 
             onDragStart={onDragStart} 
-            onExport={handleExport} 
+            onExport={() => exportZip(nodes, edges)} 
             hasErrors={hasErrors}
             nodes={nodes}
             edges={edges}
@@ -541,107 +514,12 @@ function App() {
     setHasErrors(hasErrors);
   };
 
-  const handleExport = async () => {
-    const startNode = nodes.find(node => node.data.type === 'start');
-    if (!startNode) return;
-
-    const files: { [key: string]: string } = {};
-    
-    // Собираем все файлы из нод
-    nodes.forEach(node => {
-      node.data.attachments?.forEach(attachment => {
-        const extension = getFileExtension(attachment.name);
-        const filename = `${attachment.id}.${extension}`;
-        files[filename] = attachment.data;
-      });
-    });
-
-    const botStructure: BotStructure = {
-      questions: buildHierarchy(startNode.id)
-    };
-
-    const jsonString = JSON.stringify(botStructure, null, 2);
-    const zipBlob = await createZipFile(jsonString, files);
-
-    const url = URL.createObjectURL(zipBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'chatbot-flow.zip';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const buildHierarchy = (startNodeId: string): BotNode[] => {
-    const result: BotNode[] = [];
-    
-    // Находим все исходящие связи из текущего узла
-    const outgoingEdges = edges.filter(edge => edge.source === startNodeId);
-    
-    // Сначала собираем все вопросы
-    const questionEdges = outgoingEdges.filter(edge => {
-      const targetNode = nodes.find(node => node.id === edge.target);
-      return targetNode?.data.type === 'question';
-    });
-
-    // Затем для каждого вопроса собираем его ответ, чеклист и дочерние вопросы
-    for (const edge of questionEdges) {
-      const questionNode = nodes.find(node => node.id === edge.target);
-      if (questionNode) {
-        // Находим ответ для текущего вопроса
-        const answerNode = edges
-          .filter(e => e.source === questionNode.id)
-          .map(e => nodes.find(n => n.id === e.target))
-          .find(n => n?.data.type === 'answer');
-
-        // Находим чеклист для текущего вопроса (если есть)
-        const checklistNode = edges
-          .filter(e => e.source === questionNode.id)
-          .map(e => nodes.find(n => n.id === e.target))
-          .find(n => n?.data.type === 'checklist');
-
-        const checklist = checklistNode ? {
-          title: checklistNode.data.label,
-          items: checklistNode.data.checklistItems?.map(item => item.text) || []
-        } : undefined;
-
-        const node: BotNode = {
-          id: questionNode.id,
-          text: questionNode.data.label,
-          children: buildHierarchy(questionNode.id)
-        };
-
-        // Добавляем ответ только если он есть
-        if (answerNode) {
-          node.answer = answerNode.data.label;
-        }
-
-        // Добавляем чеклист только если он есть
-        if (checklist && checklist.items.length > 0) {
-          node.checklist = checklist;
-        }
-
-        // Добавляем вложения только если они есть
-        if (questionNode.data.attachments && questionNode.data.attachments.length > 0) {
-          node.attachments = questionNode.data.attachments.map(attachment => ({
-            id: attachment.id,
-            name: attachment.name
-          }));
-        }
-
-        result.push(node);
-      }
-    }
-    
-    return result;
-  };
-
   return (
     <ThemeProvider>
       <AppContainer>
         <AppBar position="static" color="default" elevation={1}>
           <Toolbar>
+            <Logo />
             <Box sx={{ flexGrow: 1 }} />
             <IconButton onClick={handleUndo} disabled={undoStack.length === 0} sx={{ color: 'text.primary', backgroundColor: 'rgba(0, 0, 0, 0.04)', marginRight: 1 }}>
               <UndoIcon fontSize="medium" />

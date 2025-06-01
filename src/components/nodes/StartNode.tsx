@@ -5,12 +5,12 @@ import { NodeCard, StyledHandle, StyledCardContent } from './NodeStyles';
 import { NodeData } from '../../types';
 
 const StartNodeCard = styled(NodeCard)(({ theme }) => ({
-  backgroundColor: theme.palette.warning.light,
-  borderColor: theme.palette.warning.main,
-  color: theme.palette.getContrastText(theme.palette.warning.light),
+  backgroundColor: '#FD8F47',
+  borderColor: '#FD8F47',
+  color: theme.palette.getContrastText('#FD8F47'),
   '& .MuiInputBase-root': {
-    backgroundColor: `${theme.palette.warning.light} !important`,
-    color: `${theme.palette.getContrastText(theme.palette.warning.light)} !important`,
+    backgroundColor: `#FD8F47 !important`,
+    color: `${theme.palette.getContrastText('#FD8F47')} !important`,
   },
 }));
 

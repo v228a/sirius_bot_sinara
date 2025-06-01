@@ -8,10 +8,10 @@ import AttachmentList from '../AttachmentList';
 import { fileToBase64, generateFileHash, isFileSizeValid, formatFileSize, MAX_FILE_SIZE } from '../../utils/files';
 
 const QuestionNodeCard = styled(NodeCard)(({ theme }) => ({
-  backgroundColor: theme.palette.primary.light,
-  borderColor: theme.palette.primary.main,
+  backgroundColor: '#EBA577',
+  borderColor: '#EBA577',
   '& .MuiInputBase-root': {
-    backgroundColor: `${theme.palette.primary.light} !important`,
+    backgroundColor: `#EBA577 !important`,
   },
 }));
 
@@ -143,14 +143,14 @@ const QuestionNode = ({ data, isConnectable, id }: QuestionNodeProps) => {
           position: 'absolute',
           top: 2,
           right: 2,
-          backgroundColor: 'transparent',
-          color: theme.palette.primary.dark,
+          backgroundColor: '#EBA577',
+          color: '#fff',
           opacity: 1,
           zIndex: 2,
           padding: '2px',
           '&:hover': {
-            backgroundColor: 'transparent',
-            color: theme.palette.primary.dark,
+            backgroundColor: '#EBA577',
+            color: '#fff',
             opacity: 1,
           },
         }}

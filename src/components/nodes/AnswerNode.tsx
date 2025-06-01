@@ -8,10 +8,10 @@ import AttachmentList from '../AttachmentList';
 import { fileToBase64, generateFileHash } from '../../utils/files';
 
 const AnswerNodeCard = styled(NodeCard)(({ theme }) => ({
-  backgroundColor: theme.palette.secondary.light,
-  borderColor: theme.palette.secondary.main,
+  backgroundColor: '#DE6516',
+  borderColor: '#DE6516',
   '& .MuiInputBase-root': {
-    backgroundColor: `${theme.palette.secondary.light} !important`,
+    backgroundColor: `#DE6516 !important`,
   },
 }));
 
@@ -129,14 +129,14 @@ const AnswerNode = ({ data, isConnectable, id }: AnswerNodeProps) => {
           position: 'absolute',
           top: 2,
           right: 2,
-          backgroundColor: 'transparent',
-          color: theme.palette.secondary.dark,
+          backgroundColor: '#DE6516',
+          color: '#fff',
           opacity: 1,
           zIndex: 2,
           padding: '2px',
           '&:hover': {
-            backgroundColor: 'transparent',
-            color: theme.palette.secondary.dark,
+            backgroundColor: '#DE6516',
+            color: '#fff',
             opacity: 1,
           },
         }}
