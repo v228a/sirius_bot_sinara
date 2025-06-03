@@ -1,11 +1,13 @@
 import { Box, Card, CardContent, Typography, styled, useTheme, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import ChatIcon from '@mui/icons-material/Chat';
-import ChecklistIcon from '@mui/icons-material/CheckBox';
 import HandymanIcon from '@mui/icons-material/Handyman';
 
 import SaveIcon from '@mui/icons-material/Save';
+import CodeIcon from '@mui/icons-material/Code';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { useState } from 'react';
+import SortIcon from '@mui/icons-material/Sort';
 // import { useReactFlow } from 'reactflow';
 
 const ControlsContainer = styled(Box)({
@@ -71,7 +73,7 @@ const StyledTypography = styled(Typography)({
 });
 
 interface GraphControlsProps {
-  onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer' | 'checklist') => void;
+  onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer') => void;
   onExport: () => void;
   hasErrors: boolean;
 }
@@ -82,7 +84,7 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleDragStart = (event: React.DragEvent, nodeType: 'question' | 'answer' | 'checklist') => {
+  const handleDragStart = (event: React.DragEvent, nodeType: 'question' | 'answer') => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
 
@@ -138,20 +140,6 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
 
       <NodeCard
         draggable
-        onDragStart={(event) => handleDragStart(event, 'checklist')}
-      >
-        <CardInner>
-          <IconWrapper color="#6002ee">
-            <ChecklistIcon />
-          </IconWrapper>
-          <StyledTypography variant="body2" color="text.secondary">
-            Добавить чек-лист
-          </StyledTypography>
-        </CardInner>
-      </NodeCard>
-
-      <NodeCard
-        draggable
         aria-controls={menuOpen ? 'basic-menu' : undefined}
         aria-haspopup="true"
         aria-expanded={menuOpen ? 'true' : undefined}
@@ -194,16 +182,28 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
       >
         <MenuItem onClick={onExport} disabled={hasErrors}>
           <ListItemIcon>
-            <SaveIcon fontSize="small" />
+            <CodeIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Эспортировать</ListItemText>
         </MenuItem>
-        {/* <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={onExport} disabled={hasErrors}>
+          <ListItemIcon>
+            <AutoFixHighIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>AI граф</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={onExport} disabled={hasErrors}>
+          <ListItemIcon>
+            <QuestionMarkIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Шаблоны вопросов</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleMenuClose}>
           <ListItemIcon>
             <SortIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Сортировать</ListItemText>
-        </MenuItem> */}
+        </MenuItem>
       </Menu>
     </ControlsContainer>
   );

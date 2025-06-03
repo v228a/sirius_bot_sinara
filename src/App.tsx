@@ -12,7 +12,7 @@ import ReactFlow, {
   Controls,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, styled, ThemeProvider } from '@mui/material';
+import { Box, styled, ThemeProvider, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material';
 
 import ValidationAlert from './components/ValidationAlert';
 import GraphControls from './components/GraphControls';
@@ -90,10 +90,6 @@ interface BotNode {
     id: string;
     name: string;
   }>;
-  checklist?: {
-    title: string;
-    items: string[];
-  };
   children: BotNode[];
 }
 
@@ -109,6 +105,9 @@ const Flow = () => {
   const [hasErrors, setHasErrors] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
+  const [botToken, setBotToken] = useState('');
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   // Сохраняем состояние при изменении nodes или edges
   useEffect(() => {
@@ -173,19 +172,18 @@ const Flow = () => {
       const sourceType = sourceNode.data.type as string;
       const targetType = targetNode.data.type as string;
 
-      // Запрещаем соединение ответа или чеклиста со стартовым узлом
-      if (sourceType === 'start' && 
-          (targetType === 'answer' || targetType === 'checklist')) {
+      // Запрещаем соединение ответа со стартовым узлом
+      if (sourceType === 'start' && targetType === 'answer') {
         return false;
       }
 
-      // Если целевой узел - ответ или чеклист, проверяем количество входящих соединений
-      if (targetType === 'answer' || targetType === 'checklist') {
+      // Если целевой узел - ответ, проверяем количество входящих соединений
+      if (targetType === 'answer') {
         const incomers = getIncomers(targetNode, nodes, edges);
         return incomers.length === 0; // Разрешаем соединение только если нет входящих связей
       }
 
-      // Если исходный узел - вопрос, проверяем количество исходящих ответов и чеклистов
+      // Если исходный узел - вопрос, проверяем количество исходящих ответов
       if (sourceType === 'question') {
         // Получаем все исходящие соединения для данного вопроса
         const outgoingConnections = edges.filter(edge => edge.source === sourceNode.id);
@@ -195,18 +193,8 @@ const Flow = () => {
           nodes.find(n => n.id === edge.target)?.data.type === 'answer'
         );
 
-        // Проверяем количество чеклистов
-        const checklistConnections = outgoingConnections.filter(edge => 
-          nodes.find(n => n.id === edge.target)?.data.type === 'checklist'
-        );
-
         // Если пытаемся добавить ответ, но уже есть ответ
         if (targetType === 'answer' && answerConnections.length > 0) {
-          return false;
-        }
-
-        // Если пытаемся добавить чеклист, но уже есть чеклист
-        if (targetType === 'checklist' && checklistConnections.length > 0) {
           return false;
         }
       }
@@ -225,7 +213,7 @@ const Flow = () => {
     [setEdges, isValidConnection]
   );
 
-  const onDragStart = (event: DragEvent, nodeType: 'question' | 'answer' | 'checklist') => {
+  const onDragStart = (event: DragEvent, nodeType: 'question' | 'answer') => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
@@ -239,7 +227,7 @@ const Flow = () => {
     (event: React.DragEvent) => {
       event.preventDefault();
 
-      const type = event.dataTransfer.getData('application/reactflow') as 'question' | 'answer' | 'checklist';
+      const type = event.dataTransfer.getData('application/reactflow') as 'question' | 'answer';
       if (!type) return;
 
       const position = reactFlowInstance.screenToFlowPosition({
@@ -252,12 +240,9 @@ const Flow = () => {
         type,
         position,
         data: {
-          label: type === 'question' ? 'Новый вопрос' : 
-                 type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
+          label: type === 'question' ? 'Новый вопрос' : 'Новый ответ',
           type,
-          content: type === 'question' ? 'Новый вопрос' : 
-                   type === 'answer' ? 'Новый ответ' : 'Новый чек-лист',
-          checklistItems: type === 'checklist' ? [] : undefined,
+          content: type === 'question' ? 'Новый вопрос' : 'Новый ответ',
         },
       };
 
@@ -278,7 +263,7 @@ const Flow = () => {
       return targetNode?.data.type === 'question';
     });
 
-    // Затем для каждого вопроса собираем его ответ, чеклист и дочерние вопросы
+    // Затем для каждого вопроса собираем его ответ и дочерние вопросы
     for (const edge of questionEdges) {
       const questionNode = nodes.find(node => node.id === edge.target);
       if (questionNode) {
@@ -288,49 +273,69 @@ const Flow = () => {
           .map(e => nodes.find(n => n.id === e.target))
           .find(n => n?.data.type === 'answer');
 
-        // Находим чеклист для текущего вопроса (если есть)
-        const checklistNode = edges
-          .filter(e => e.source === questionNode.id)
-          .map(e => nodes.find(n => n.id === e.target))
-          .find(n => n?.data.type === 'checklist');
-
-        const checklist = checklistNode ? {
-          title: checklistNode.data.label,
-          items: checklistNode.data.checklistItems?.map(item => item.text) || []
-        } : undefined;
-
         const node: BotNode = {
           id: questionNode.id,
           text: questionNode.data.label,
+          attachments: questionNode.data.attachments?.map(attachment => ({
+            id: attachment.id,
+            name: attachment.name
+          })),
           children: buildHierarchy(questionNode.id)
         };
 
         // Добавляем ответ только если он есть
         if (answerNode) {
           node.answer = answerNode.data.label;
-        }
-
-        // Добавляем чеклист только если он есть
-        if (checklist && checklist.items.length > 0) {
-          node.checklist = checklist;
-        }
-
-        // Добавляем вложения только если они есть
-        if (questionNode.data.attachments && questionNode.data.attachments.length > 0) {
-          node.attachments = questionNode.data.attachments.map(attachment => ({
-            id: attachment.id,
-            name: attachment.name
-          }));
+          // Добавляем вложения из ответа, если они есть
+          if (answerNode.data.attachments) {
+            node.attachments = [
+              ...(node.attachments || []),
+              ...answerNode.data.attachments.map(attachment => ({
+                id: attachment.id,
+                name: attachment.name
+              }))
+            ];
+          }
         }
 
         result.push(node);
       }
     }
-    
+
     return result;
   };
 
-  const handleExport = async () => {
+  const validateBotToken = (token: string): boolean => {
+    // Telegram bot token format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+    const tokenRegex = /^\d{8,10}:[A-Za-z0-9_-]{35}$/;
+    return tokenRegex.test(token);
+  };
+
+  const handleTokenChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const token = event.target.value;
+    setBotToken(token);
+    if (token && !validateBotToken(token)) {
+      setTokenError('Неверный формат токена. Токен должен быть в формате: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz');
+    } else {
+      setTokenError(null);
+    }
+  };
+
+  const handleExportClick = () => {
+    setIsTokenDialogOpen(true);
+  };
+
+  const handleExportConfirm = async () => {
+    if (!validateBotToken(botToken)) {
+      setTokenError('Пожалуйста, введите корректный токен бота');
+      return;
+    }
+
+    setIsTokenDialogOpen(false);
+    await handleExport(botToken);
+  };
+
+  const handleExport = async (token: string) => {
     const startNode = nodes.find(node => node.data.type === 'start');
     if (!startNode) return;
 
@@ -349,13 +354,140 @@ const Flow = () => {
       questions: buildHierarchy(startNode.id)
     };
 
-    const jsonString = JSON.stringify(botStructure, null, 2);
-    const zipBlob = await createZipFile(jsonString, files);
+    // Добавляем необходимые файлы для работы бота
+    files['install.sh'] = `#!/bin/bash\n\n# Установка зависимостей\napt-get update\napt-get install -y docker.io\n\n# Сборка и запуск контейнера\ndocker build -t chatbot .\ndocker run -d --name chatbot chatbot\n\necho \"Бот успешно установлен и запущен!\"\n`;
+    files['Dockerfile'] = `FROM python:3.9-slim\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\nCOPY . .\n\nCMD ["python", "bot.py"]\n`;
+    files['requirements.txt'] = `aiogram==2.25.1`;
+    files['bot.py'] = `import json
+import logging
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputFile
+from aiogram.utils import executor
+
+JSON_FILE = "bot_structure.json"  # JSON-файл с вопросами
+
+bot = Bot(token="${token}")
+dp = Dispatcher(bot)
+logging.basicConfig(level=logging.INFO)
+
+# Загружаем JSON-данные
+with open(JSON_FILE, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+# Храним путь пользователя в формате списка id
+user_paths = {}
+
+def get_node_by_path(path):
+    """Находит узел по списку id."""
+    node_list = data["questions"]
+    node = None
+
+    for node_id in path:
+        node = next((item for item in node_list if item["id"] == node_id), None)
+        if node and "children" in node:
+            node_list = node["children"]
+        else:
+            break
+
+    return node
+
+def get_keyboard(node, is_root=False):
+    """Создаёт клавиатуру с дочерними элементами и чеклистами."""
+    keyboard = InlineKeyboardMarkup()
+
+    if "children" in node:
+        for child in node["children"]:
+            keyboard.add(InlineKeyboardButton(text=child["text"], callback_data=child["id"]))
+
+    if "checklist" in node:
+        for item in node["checklist"]["items"]:
+            keyboard.add(InlineKeyboardButton(text=f"✅ {item}", callback_data="CHECKLIST_ITEM"))
+
+    if not is_root:
+        keyboard.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="BACK"))
+
+    return keyboard if keyboard.inline_keyboard else None
+
+async def send_attachments(user_id, attachments):
+    """Отправляет все вложения из узла."""
+    if not attachments:
+        return
+        
+    for attachment in attachments:
+        file_path = attachment["id"]  # Используем id как путь к файлу
+        try:
+            if attachment["name"].lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                # Отправляем изображение
+                with open(file_path, 'rb') as photo:
+                    await bot.send_photo(user_id, photo)
+            else:
+                # Отправляем файл
+                with open(file_path, 'rb') as file:
+                    await bot.send_document(user_id, InputFile(file))
+        except Exception as e:
+            logging.error(f"Ошибка при отправке файла {file_path}: {e}")
+            await bot.send_message(user_id, f"Не удалось отправить файл: {attachment['name']}")
+
+async def show_main_menu(user_id):
+    """Показывает корневое меню."""
+    user_paths[user_id] = []
+    keyboard = get_keyboard({"children": data["questions"]}, is_root=True)
+    await bot.send_message(user_id, "Выберите категорию:", reply_markup=keyboard)
+
+@dp.message_handler(commands=["start"])
+async def start_command(message: types.Message):
+    """Запуск бота, вывод главного меню."""
+    await show_main_menu(message.chat.id)
+
+@dp.callback_query_handler(lambda c: True)
+async def navigate(callback_query: types.CallbackQuery):
+    """Обрабатывает нажатия на кнопки."""
+    user_id = callback_query.message.chat.id
+    path = user_paths.get(user_id, [])
+
+    if callback_query.data == "BACK":
+        if path:
+            path.pop()  # Удаляем последний элемент (шаг назад)
+    else:
+        path.append(callback_query.data)  # Добавляем новый узел в путь
+
+    user_paths[user_id] = path
+    node = get_node_by_path(path)
+
+    if node:
+        keyboard = get_keyboard(node, is_root=(not path))
+
+        if "answer" in node:
+            # Удаляем старое сообщение с кнопками
+            await bot.delete_message(user_id, callback_query.message.message_id)
+            
+            # Отправляем текст ответа
+            await bot.send_message(user_id, node["answer"])
+            
+            # Отправляем вложения, если они есть
+            if "attachments" in node:
+                await send_attachments(user_id, node["attachments"])
+
+            # Показываем корневое меню
+            await show_main_menu(user_id)
+        else:
+            await bot.edit_message_text(
+                text=node["text"], chat_id=user_id, message_id=callback_query.message.message_id, reply_markup=keyboard
+            )
+    else:
+        # Если после нажатия "Назад" узел не найден, принудительно показываем корневое меню
+        await show_main_menu(user_id)
+
+if __name__ == "__main__":
+    executor.start_polling(dp, skip_updates=True)`;//мама мия...
+    files['bot_structure.json'] = JSON.stringify(botStructure, null, 2);
+
+    const zipBlob = await createZipFile(JSON.stringify(botStructure, null, 2), files);
 
     const url = URL.createObjectURL(zipBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'chatbot-flow.zip';
+    link.download = 'chatbot.zip';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -387,9 +519,32 @@ const Flow = () => {
         >
           <Background color='F6F6F6'/>
           <Controls />
-          <GraphControls onDragStart={onDragStart} onExport={handleExport} hasErrors={hasErrors} />
+          <GraphControls onDragStart={onDragStart} onExport={handleExportClick} hasErrors={hasErrors} />
         </ReactFlow>
       </FlowContainer>
+      <Dialog open={isTokenDialogOpen} onClose={() => setIsTokenDialogOpen(false)}>
+        <DialogTitle>Введите токен бота</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Токен бота"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={botToken}
+            onChange={handleTokenChange}
+            error={!!tokenError}
+            helperText={tokenError || 'Формат: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz'}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsTokenDialogOpen(false)}>Отмена</Button>
+          <Button onClick={handleExportConfirm} disabled={!!tokenError || !botToken}>
+            Экспорт
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar 
         open={!!storageError || !!fileError} 
         autoHideDuration={6000} 

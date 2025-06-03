@@ -92,16 +92,14 @@ const ValidationAlert = ({ nodes, edges, onValidationChange }: ValidationAlertPr
     const startNodes = nodes.filter(node => node.data.type === 'start');
     const questionNodes = nodes.filter(node => node.data.type === 'question');
     const answerNodes = nodes.filter(node => node.data.type === 'answer');
-    const checklistNodes = nodes.filter(node => node.data.type === 'checklist');
 
-    // Находим вопросы без ответов или чеклистов
+    // Находим вопросы без ответов
     const questionsWithoutAnswers = questionNodes.filter(node => {
-      const hasConnectedAnswerOrChecklist = edges.some(edge => 
+      const hasConnectedAnswer = edges.some(edge => 
         edge.source === node.id && 
-        nodes.find(n => n.id === edge.target)?.data.type === 'answer' ||
-        nodes.find(n => n.id === edge.target)?.data.type === 'checklist'
+        nodes.find(n => n.id === edge.target)?.data.type === 'answer'
       );
-      return !hasConnectedAnswerOrChecklist;
+      return !hasConnectedAnswer;
     });
 
     if (questionsWithoutAnswers.length > 0) {
@@ -111,21 +109,6 @@ const ValidationAlert = ({ nodes, edges, onValidationChange }: ValidationAlertPr
         }`,
         severity: 'warning',
         nodeIds: questionsWithoutAnswers.map(node => node.id)
-      });
-    }
-
-    // Находим чеклисты без пунктов
-    const emptyChecklists = checklistNodes.filter(node => {
-      return !node.data.checklistItems || node.data.checklistItems.length === 0;
-    });
-
-    if (emptyChecklists.length > 0) {
-      errors.push({
-        message: `${emptyChecklists.length} ${
-          emptyChecklists.length === 1 ? 'чеклист без пунктов' : 'чеклиста без пунктов'
-        }`,
-        severity: 'warning',
-        nodeIds: emptyChecklists.map(node => node.id)
       });
     }
 
@@ -166,7 +149,7 @@ const ValidationAlert = ({ nodes, edges, onValidationChange }: ValidationAlertPr
       });
     }
 
-    // Находим ответы и чеклисты без входящих соединений
+    // Находим ответы без входящих соединений
     const disconnectedAnswers = answerNodes.filter(node => {
       const hasIncomingConnection = edges.some(edge => 
         edge.target === node.id &&
@@ -225,9 +208,7 @@ const ValidationAlert = ({ nodes, edges, onValidationChange }: ValidationAlertPr
 
     if (connectedEmptyNodes.length > 0) {
       const questions = connectedEmptyNodes.filter(node => node.data.type === 'question');
-      const answers = connectedEmptyNodes.filter(node => 
-        node.data.type === 'answer' || node.data.type === 'checklist'
-      );
+      const answers = connectedEmptyNodes.filter(node => node.data.type === 'answer');
 
       if (questions.length > 0) {
         errors.push({
@@ -249,18 +230,6 @@ const ValidationAlert = ({ nodes, edges, onValidationChange }: ValidationAlertPr
         });
       }
     }
-
-    // Проверка на пустые пункты в чек-листах
-    checklistNodes.forEach(node => {
-      const emptyItems = node.data.checklistItems?.filter(item => !item.text.trim());
-      if (emptyItems && emptyItems.length > 0) {
-        errors.push({
-          message: `Чек-лист "${node.data.label}" содержит ${emptyItems.length} пустых пунктов`,
-          severity: 'warning',
-          nodeIds: [node.id],
-        });
-      }
-    });
 
     return errors;
   }, [nodes, edges]);

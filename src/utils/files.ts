@@ -49,8 +49,16 @@ export const createZipFile = async (
   // Добавляем файлы в соответствующие папки
   Object.entries(files).forEach(([filename, content]) => {
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
-    const folder = isImage ? imagesFolder : filesFolder;
-    folder?.file(filename, content.split(',')[1], { base64: true });
+    const isBotFile = ['bot.py', 'requirements.txt', 'install.sh', 'Dockerfile', '.env'].includes(filename);
+    
+    if (isBotFile) {
+      // Добавляем файлы бота в корень архива
+      zip.file(filename, content);
+    } else {
+      // Остальные файлы добавляем в соответствующие папки
+      const folder = isImage ? imagesFolder : filesFolder;
+      folder?.file(filename, content);
+    }
   });
 
   return zip.generateAsync({ type: 'blob' });

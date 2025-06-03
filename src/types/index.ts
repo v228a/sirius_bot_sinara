@@ -16,9 +16,8 @@ export interface ChecklistItem {
 
 export interface NodeData {
   label: string;
-  type: 'start' | 'question' | 'answer' | 'checklist';
+  type: 'start' | 'question' | 'answer';
   content: string;
-  checklistItems?: { text: string }[];
   attachments?: Attachment[];
 }
 
