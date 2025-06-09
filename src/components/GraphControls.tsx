@@ -3,12 +3,10 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import ChatIcon from '@mui/icons-material/Chat';
 import HandymanIcon from '@mui/icons-material/Handyman';
 
-import SaveIcon from '@mui/icons-material/Save';
+
 import CodeIcon from '@mui/icons-material/Code';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { useState } from 'react';
 import SortIcon from '@mui/icons-material/Sort';
-// import { useReactFlow } from 'reactflow';
 
 const ControlsContainer = styled(Box)({
   position: 'absolute',
@@ -144,7 +142,6 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
         aria-haspopup="true"
         aria-expanded={menuOpen ? 'true' : undefined}
         onMouseEnter={handleMenuOpen}
-        // onClick={}
       >
         <CardInner>
           <IconWrapper color="#757575">
@@ -186,23 +183,17 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
           </ListItemIcon>
           <ListItemText>Эспортировать</ListItemText>
         </MenuItem>
-        <MenuItem onClick={onExport} disabled={hasErrors}>
-          <ListItemIcon>
-            <AutoFixHighIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>AI граф</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={onExport} disabled={hasErrors}>
-          <ListItemIcon>
-            <QuestionMarkIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Шаблоны вопросов</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={onExport}>
           <ListItemIcon>
             <SortIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Сортировать</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={onExport}>
+          <ListItemIcon>
+            <QuestionMarkIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Шаблоны вопросов</ListItemText>
         </MenuItem>
       </Menu>
     </ControlsContainer>
