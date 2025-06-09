@@ -380,7 +380,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputFile
 from aiogram.utils import executor
 
-JSON_FILE = "bot_structure.json"  # JSON-файл с вопросами
+JSON_FILE = "main.json"  # JSON-файл с вопросами
 
 bot = Bot(token="${token}")
 dp = Dispatcher(bot)
