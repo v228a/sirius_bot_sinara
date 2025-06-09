@@ -97,6 +97,18 @@ interface BotStructure {
   questions: BotNode[];
 }
 
+interface TemplateData {
+  [key: string]: {
+    [key: string]: string[] | {
+      [key: string]: string[];
+    };
+  };
+}
+
+type CategoryContent = string[] | {
+  [key: string]: string[];
+};
+
 const Flow = () => {
   const reactFlowInstance = useReactFlow();
 
@@ -591,8 +603,124 @@ if __name__ == "__main__":
     }, 100);
   }, [nodes, edges, setNodes, reactFlowInstance]);
 
+  const loadTemplateQuestions = useCallback(async () => {
+    try {
+      const response = await fetch('/questions.json');
+      const data = await response.json() as TemplateData;
+      
+      const newNodes: ChatBotNode[] = [];
+      const newEdges: Edge[] = [];
+      let nodeId = 1;
+      
+      // Функция для рекурсивного создания узлов
+      const createNodesFromCategory = (
+        category: CategoryContent,
+        parentId: string | null = null,
+        x: number = 0,
+        y: number = 0
+      ) => {
+        if (Array.isArray(category)) {
+          // Если это массив вопросов
+          category.forEach((question, index) => {
+            const questionNodeId = `question_${nodeId++}`;
+            const answerNodeId = `answer_${nodeId++}`;
+            
+            // Создаем узел вопроса
+            newNodes.push({
+              id: questionNodeId,
+              type: 'question',
+              position: { x: x + index * 200, y: y },
+              data: {
+                label: question,
+                type: 'question',
+                content: question,
+              },
+            });
+            
+            // Создаем пустой узел ответа
+            newNodes.push({
+              id: answerNodeId,
+              type: 'answer',
+              position: { x: x + index * 200, y: y + 100 },
+              data: {
+                label: 'Новый ответ',
+                type: 'answer',
+                content: 'Новый ответ',
+              },
+            });
+            
+            // Создаем связь между вопросом и ответом
+            newEdges.push({
+              id: `edge_${questionNodeId}_${answerNodeId}`,
+              source: questionNodeId,
+              target: answerNodeId,
+            });
+            
+            // Если есть родительский узел, создаем связь с ним
+            if (parentId) {
+              newEdges.push({
+                id: `edge_${parentId}_${questionNodeId}`,
+                source: parentId,
+                target: questionNodeId,
+              });
+            }
+          });
+        } else if (typeof category === 'object') {
+          // Если это объект с подкатегориями
+          Object.entries(category).forEach(([subCategory, questions], index) => {
+            const categoryNodeId = `question_${nodeId++}`;
+            
+            // Создаем узел категории
+            newNodes.push({
+              id: categoryNodeId,
+              type: 'question',
+              position: { x: x + index * 300, y: y },
+              data: {
+                label: subCategory,
+                type: 'question',
+                content: subCategory,
+              },
+            });
+            
+            // Если есть родительский узел, создаем связь с ним
+            if (parentId) {
+              newEdges.push({
+                id: `edge_${parentId}_${categoryNodeId}`,
+                source: parentId,
+                target: categoryNodeId,
+              });
+            }
+            
+            // Рекурсивно создаем узлы для подкатегории
+            createNodesFromCategory(questions, categoryNodeId, x + index * 300, y + 150);
+          });
+        }
+      };
+      
+      // Начинаем с корневых категорий
+      Object.entries(data).forEach(([category, content], index) => {
+        createNodesFromCategory(content as CategoryContent, 'start', index * 300, 100);
+      });
+      
+      // Добавляем новые узлы и связи
+      setNodes((nds) => [...nds, ...newNodes]);
+      setEdges((eds) => [...eds, ...newEdges]);
+      
+    } catch (error) {
+      console.error('Failed to load template questions:', error);
+      setFileError('Не удалось загрузить шаблонные вопросы');
+    }
+  }, [setNodes, setEdges]);
+
   return (
-    <>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <GraphControls
+        onDragStart={onDragStart}
+        onExport={handleExportClick}
+        onSort={handleSortClick}
+        onLoadTemplates={loadTemplateQuestions}
+        hasErrors={hasErrors}
+      />
       <ValidationAlert 
         nodes={nodes} 
         edges={edges} 
@@ -612,12 +740,6 @@ if __name__ == "__main__":
         >
           <Background color='F6F6F6'/>
           <Controls />
-          <GraphControls 
-            onDragStart={onDragStart} 
-            onExport={handleExportClick} 
-            onSort={handleSortClick}
-            hasErrors={hasErrors} 
-          />
         </ReactFlow>
       </FlowContainer>
       <Dialog open={isTokenDialogOpen} onClose={() => setIsTokenDialogOpen(false)}>
@@ -664,7 +786,7 @@ if __name__ == "__main__":
           {storageError || fileError}
         </Alert>
       </Snackbar>
-    </>
+    </Box>
   );
 };
 

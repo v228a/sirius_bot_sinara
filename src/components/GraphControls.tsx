@@ -74,10 +74,11 @@ interface GraphControlsProps {
   onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer') => void;
   onExport: () => void;
   onSort: () => void;
+  onLoadTemplates: () => Promise<void>;
   hasErrors: boolean;
 }
 
-const GraphControls = ({ onDragStart, onExport, onSort, hasErrors }: GraphControlsProps) => {
+const GraphControls = ({ onDragStart, onExport, onSort, onLoadTemplates, hasErrors }: GraphControlsProps) => {
   // const reactFlowInstance = useReactFlow();
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -190,11 +191,11 @@ const GraphControls = ({ onDragStart, onExport, onSort, hasErrors }: GraphContro
           </ListItemIcon>
           <ListItemText>Сортировать</ListItemText>
         </MenuItem>
-        <MenuItem onClick={onExport}>
+        <MenuItem onClick={onLoadTemplates}>
           <ListItemIcon>
             <QuestionMarkIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Шаблоны вопросов</ListItemText>
+          <ListItemText>Загрузить шаблоны</ListItemText>
         </MenuItem>
       </Menu>
     </ControlsContainer>
