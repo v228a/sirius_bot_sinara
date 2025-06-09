@@ -583,11 +583,9 @@ if __name__ == "__main__":
       });
 
       // Увеличиваем горизонтальное расстояние между вопросами, если есть ответы
-      const adjustedSpacing = answerEdges.length > 0 ? HORIZONTAL_SPACING * 1.5 : HORIZONTAL_SPACING;
 
       // Вычисляем смещение для следующего уровня вопросов
       const nextLevelOffset = answerEdges.length > 0 ? ANSWER_OFFSET : 0;
-      const nextLevelY = y + (answerEdges.length > 0 ? ANSWER_VERTICAL_OFFSET + (answerEdges.length * VERTICAL_SPACING) : 0);
 
       questionEdges.forEach((edge, idx) => {
         arrangeNode(edge.target, level + 1, idx, x + nextLevelOffset);
@@ -698,8 +696,8 @@ if __name__ == "__main__":
       };
       
       // Начинаем с корневых категорий
-      Object.entries(data).forEach(([category, content], index) => {
-        createNodesFromCategory(content as CategoryContent, 'start', index * 300, 100);
+      Object.entries(data).forEach(([content], index) => {
+        createNodesFromCategory(content as unknown as CategoryContent, 'start', index * 300, 100);
       });
       
       // Добавляем новые узлы и связи
