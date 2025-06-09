@@ -73,10 +73,11 @@ const StyledTypography = styled(Typography)({
 interface GraphControlsProps {
   onDragStart: (event: React.DragEvent, nodeType: 'question' | 'answer') => void;
   onExport: () => void;
+  onSort: () => void;
   hasErrors: boolean;
 }
 
-const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps) => {
+const GraphControls = ({ onDragStart, onExport, onSort, hasErrors }: GraphControlsProps) => {
   // const reactFlowInstance = useReactFlow();
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -181,9 +182,9 @@ const GraphControls = ({ onDragStart, onExport, hasErrors }: GraphControlsProps)
           <ListItemIcon>
             <CodeIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Эспортировать</ListItemText>
+          <ListItemText>Экспортировать</ListItemText>
         </MenuItem>
-        <MenuItem onClick={onExport}>
+        <MenuItem onClick={onSort}>
           <ListItemIcon>
             <SortIcon fontSize="small" />
           </ListItemIcon>

@@ -325,6 +325,10 @@ const Flow = () => {
     setIsTokenDialogOpen(true);
   };
 
+  const handleSortClick = () => {
+    arrangeNodes();
+  };
+
   const handleExportConfirm = async () => {
     if (!validateBotToken(botToken)) {
       setTokenError('Пожалуйста, введите корректный токен бота');
@@ -496,7 +500,96 @@ if __name__ == "__main__":
 
   const handleValidationChange = useCallback((errors: { severity: 'error' | 'warning' }[]) => {
     setHasErrors(errors.some(error => error.severity === 'error'));
-  }, []); 
+  }, []);
+
+  const arrangeNodes = useCallback(() => {
+    const startNode = nodes.find(node => node.data.type === 'start');
+    if (!startNode) return;
+
+    const HORIZONTAL_SPACING = 250;
+    const VERTICAL_SPACING = 100;
+    const LEVEL_HEIGHT = 200;
+    const ANSWER_OFFSET = 150;
+    const ANSWER_VERTICAL_OFFSET = 150; // Вертикальное смещение для ответов
+
+    const arrangeNode = (nodeId: string, level: number, index: number, parentX: number) => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) return;
+
+      // Calculate new position
+      const x = parentX + (index * HORIZONTAL_SPACING);
+      const y = level * LEVEL_HEIGHT;
+
+      // Update node position
+      setNodes(nds => 
+        nds.map(n => {
+          if (n.id === nodeId) {
+            return {
+              ...n,
+              position: { x, y }
+            };
+          }
+          return n;
+        })
+      );
+
+      // Get all outgoing edges
+      const outgoingEdges = edges.filter(edge => edge.source === nodeId);
+      
+      // First arrange answer nodes
+      const answerEdges = outgoingEdges.filter(edge => {
+        const targetNode = nodes.find(n => n.id === edge.target);
+        return targetNode?.data.type === 'answer';
+      });
+
+      // Располагаем ответы с учетом их количества
+      answerEdges.forEach((edge, idx) => {
+        const answerNode = nodes.find(n => n.id === edge.target);
+        if (answerNode) {
+          // Вычисляем смещение для ответа в зависимости от его индекса
+          const answerX = x + ANSWER_OFFSET;
+          const answerY = y + ANSWER_VERTICAL_OFFSET + (idx * VERTICAL_SPACING);
+          
+          setNodes(nds =>
+            nds.map(n => {
+              if (n.id === answerNode.id) {
+                return {
+                  ...n,
+                  position: { x: answerX, y: answerY }
+                };
+              }
+              return n;
+            })
+          );
+        }
+      });
+
+      // Then arrange question nodes
+      const questionEdges = outgoingEdges.filter(edge => {
+        const targetNode = nodes.find(n => n.id === edge.target);
+        return targetNode?.data.type === 'question';
+      });
+
+      // Увеличиваем горизонтальное расстояние между вопросами, если есть ответы
+      const adjustedSpacing = answerEdges.length > 0 ? HORIZONTAL_SPACING * 1.5 : HORIZONTAL_SPACING;
+
+      // Вычисляем смещение для следующего уровня вопросов
+      const nextLevelOffset = answerEdges.length > 0 ? ANSWER_OFFSET : 0;
+      const nextLevelY = y + (answerEdges.length > 0 ? ANSWER_VERTICAL_OFFSET + (answerEdges.length * VERTICAL_SPACING) : 0);
+
+      questionEdges.forEach((edge, idx) => {
+        arrangeNode(edge.target, level + 1, idx, x + nextLevelOffset);
+      });
+    };
+
+    // Start arrangement from the start node
+    arrangeNode(startNode.id, 0, 0, 0);
+
+    // Fit view after arrangement
+    setTimeout(() => {
+      reactFlowInstance.fitView({ padding: 0.2 });
+    }, 100);
+  }, [nodes, edges, setNodes, reactFlowInstance]);
 
   return (
     <>
@@ -519,7 +612,12 @@ if __name__ == "__main__":
         >
           <Background color='F6F6F6'/>
           <Controls />
-          <GraphControls onDragStart={onDragStart} onExport={handleExportClick} hasErrors={hasErrors} />
+          <GraphControls 
+            onDragStart={onDragStart} 
+            onExport={handleExportClick} 
+            onSort={handleSortClick}
+            hasErrors={hasErrors} 
+          />
         </ReactFlow>
       </FlowContainer>
       <Dialog open={isTokenDialogOpen} onClose={() => setIsTokenDialogOpen(false)}>
